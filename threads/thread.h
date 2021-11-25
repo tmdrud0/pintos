@@ -142,7 +142,14 @@ void thread_set_nice (int);
 int thread_get_recent_cpu (void);
 int thread_get_load_avg (void);
 ///////////////////////
+/////alarm/////
 bool is_less_tick (const struct list_elem *a,const struct list_elem *b,void *aux);
 void thread_sleep(int64_t tick); 
 void wakeup_thread(int64_t tick);
+
+////////////priority_scheduling
+bool is_higher_priority(const struct list_elem *a,const struct list_elem *b,void *aux);
+void thread_preempt(void);
+
+struct thread *te (const struct list_elem *a);
 #endif /* threads/thread.h */
