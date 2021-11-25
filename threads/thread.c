@@ -28,6 +28,10 @@ static struct list ready_list;
    when they are first scheduled and removed when they exit. */
 static struct list all_list;
 
+//////
+/* list of sleeping */
+static struct list sleep_list;
+///////////////
 /* Idle thread. */
 static struct thread *idle_thread;
 
@@ -92,7 +96,7 @@ thread_init (void)
   lock_init (&tid_lock);
   list_init (&ready_list);
   list_init (&all_list);
-
+  list_init(&sleep_list);
   /* Set up a thread structure for the running thread. */
   initial_thread = running_thread ();
   init_thread (initial_thread, "main", PRI_DEFAULT);
@@ -133,7 +137,6 @@ thread_tick (void)
 #endif
   else
     kernel_ticks++;
-
   /* Enforce preemption. */
   if (++thread_ticks >= TIME_SLICE)
     intr_yield_on_return ();
@@ -585,3 +588,50 @@ allocate_tid (void)
 /* Offset of `stack' member within `struct thread'.
    Used by switch.S, which can't figure it out on its own. */
 uint32_t thread_stack_ofs = offsetof (struct thread, stack);
+
+///////////////////
+/*sleep thread to tick*/
+void thread_sleep(int64_t tick)
+{ 
+  struct thread *cur = thread_current ();
+  enum intr_level old_level= intr_disable();
+
+  ASSERT(cur!=idle_thread);
+
+  cur->wakeup_tick = tick;
+  list_insert_ordered(&sleep_list,&cur->elem,is_less_tick,NULL);
+
+  thread_block();
+  intr_set_level(old_level);
+}
+
+bool is_less_tick (const struct list_elem *a,const struct list_elem *b,void *aux)
+{
+  struct thread *at = list_entry (a, struct thread, elem);
+  struct thread *bt = list_entry(b,struct thread, elem);
+
+  if(at->wakeup_tick<=bt->wakeup_tick)  return true;
+  else                                  return false;
+}
+//
+
+void wakeup_thread(int64_t tick)
+{
+  struct list_elem *i = list_begin(&sleep_list);
+  struct list_elem *end = list_end(&sleep_list);
+
+  struct thread *tmp;
+  while(i!=end)
+  {
+    tmp = list_entry (i, struct thread, elem);
+    if(tmp->wakeup_tick<=tick)
+    {
+      list_pop_front(&sleep_list);
+      i = list_begin(&sleep_list);
+      thread_unblock(tmp);
+    }
+    else  break;
+  }
+}
+
+//////////////
