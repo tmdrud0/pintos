@@ -68,7 +68,7 @@ sema_down (struct semaphore *sema)
   old_level = intr_disable ();
   while (sema->value == 0) 
     {
-      list_push_back (&sema->waiters, &thread_current ()->elem);
+      list_insert_ordered(&sema->waiters,&thread_current ()->elem,is_higher_priority,NULL);
       thread_block ();
     }
   sema->value--;
@@ -111,12 +111,15 @@ sema_up (struct semaphore *sema)
   enum intr_level old_level;
 
   ASSERT (sema != NULL);
+  
+  list_sort(&sema->waiters,is_higher_priority,NULL);
 
   old_level = intr_disable ();
-  if (!list_empty (&sema->waiters)) 
+  if (!list_empty (&sema->waiters))   
     thread_unblock (list_entry (list_pop_front (&sema->waiters),
                                 struct thread, elem));
   sema->value++;
+  thread_preempt();
   intr_set_level (old_level);
 }
 
@@ -315,7 +318,7 @@ cond_signal (struct condition *cond, struct lock *lock UNUSED)
   ASSERT (lock != NULL);
   ASSERT (!intr_context ());
   ASSERT (lock_held_by_current_thread (lock));
-
+  list_sort(&cond->waiters,sema_higher_priority,NULL);
   if (!list_empty (&cond->waiters)) 
     sema_up (&list_entry (list_pop_front (&cond->waiters),
                           struct semaphore_elem, elem)->semaphore);
@@ -335,4 +338,17 @@ cond_broadcast (struct condition *cond, struct lock *lock)
 
   while (!list_empty (&cond->waiters))
     cond_signal (cond, lock);
+}
+
+
+bool sema_higher_priority(struct list_elem* a,struct list_elem* b, void* aux)
+{
+  struct list_elem * amax = list_min(&list_entry(a,struct semaphore_elem,elem)->semaphore.waiters,is_higher_priority, NULL);
+  struct list_elem * bmax = list_min(&list_entry(b,struct semaphore_elem,elem)->semaphore.waiters,is_higher_priority, NULL);
+  
+  int ap = list_entry(amax,struct thread,elem)->priority;
+  int bp = list_entry(bmax,struct thread,elem)->priority;
+
+  if(ap>bp) return true;
+  else      return false;
 }
