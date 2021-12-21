@@ -346,7 +346,8 @@ thread_foreach (thread_action_func *func, void *aux)
 void
 thread_set_priority (int new_priority) 
 {
-  thread_current ()->priority = new_priority;
+  thread_current ()->my_priority = new_priority;
+  update_priority();
   thread_preempt();
 }
 
@@ -474,6 +475,11 @@ init_thread (struct thread *t, const char *name, int priority)
   t->priority = priority;
   t->magic = THREAD_MAGIC;
   list_push_back (&all_list, &t->allelem);
+
+  //
+  t->wait_lock = NULL;
+  list_init(&t->donation);
+  t->my_priority = priority;
 }
 
 /* Allocates a SIZE-byte frame at the top of thread T's stack and

@@ -90,11 +90,17 @@ struct thread
     int priority;                       /* Priority. */
     struct list_elem allelem;           /* List element for all threads list. */
 
+   ////////
+   //to priority donation
+   int my_priority;
+   struct lock *wait_lock;
+   struct list donation;
+   struct list_elem donation_elem;
+   ////////
     /* Shared between thread.c and synch.c. */
     struct list_elem elem;              /* List element. */
-
    ///////
-   /* element which is sleeping */
+   /* element sleeping */
    int64_t wakeup_tick;  
    //////
 #ifdef USERPROG
